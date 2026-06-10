@@ -1,4 +1,78 @@
+import * as THREE from "three";
+
+window.SharedTHREE = THREE;
+
+const gsap = window.gsap;
+const ScrollTrigger = window.ScrollTrigger;
+const Lenis = window.Lenis;
+
 const scrambleChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#/+*-";
+
+function shuffleIndexes(length) {
+  const indexes = Array.from({ length }, (_, index) => index);
+
+  for (let index = indexes.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1));
+    const current = indexes[index];
+    indexes[index] = indexes[randomIndex];
+    indexes[randomIndex] = current;
+  }
+
+  return indexes;
+}
+
+function buildPixelTransitionBlocks(grid) {
+  const columnCount = 20;
+  const blockSize = window.innerWidth * 0.05;
+  const viewportHeight = Math.max(window.innerHeight, document.documentElement.clientHeight || 0, window.screen?.height || 0);
+  const blockCount = Math.ceil(viewportHeight / blockSize) + 4;
+  const pixelPalette = [
+    "#030303",
+    "#070303",
+    "#120606",
+    "#1a0505",
+    "#2b0707",
+    "#4e0909",
+    "#7a0508",
+    "#ff1717",
+  ];
+
+  grid.innerHTML = "";
+
+  for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
+    const column = document.createElement("div");
+    const shuffledIndexes = shuffleIndexes(blockCount);
+
+    column.className = "pixel-transition-column";
+
+    for (let blockIndex = 0; blockIndex < blockCount; blockIndex += 1) {
+      const block = document.createElement("span");
+      const randomIndex = shuffledIndexes[blockIndex];
+      const delay = randomIndex * 0.03;
+      const colorIndex = (columnIndex * 3 + blockIndex + randomIndex) % pixelPalette.length;
+
+      block.className = "pixel-transition-block";
+      block.style.setProperty("--pixel-color", pixelPalette[colorIndex]);
+      block.dataset.forwardDelay = String(delay);
+      block.dataset.forwardClearDelay = String(delay);
+      block.dataset.reverseDelay = String(delay);
+      block.dataset.reverseClearDelay = String(delay);
+      column.appendChild(block);
+    }
+
+    grid.appendChild(column);
+  }
+
+  return Array.from(grid.querySelectorAll(".pixel-transition-block"));
+}
+
+function debounce(callback, delay = 120) {
+  let timeout;
+  return (...args) => {
+    window.clearTimeout(timeout);
+    timeout = window.setTimeout(() => callback(...args), delay);
+  };
+}
 
 function scramblePart(element, finalText, duration = 850, delay = 0) {
   const start = performance.now() + delay;
@@ -54,9 +128,49 @@ window.addEventListener("DOMContentLoaded", () => {
   initHeroAmbientText();
   initInfoCardTilt();
   initDevilTuner();
+  initSmoothScroll();
   initCharacterMaskReveal();
   initStackedCinematicScroll();
 });
+
+function initSmoothScroll() {
+  if (!window.Lenis || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return null;
+
+  const lenis = new Lenis({
+    anchors: true,
+    lerp: 0.085,
+    smoothWheel: true,
+    wheelMultiplier: 0.92,
+    touchMultiplier: 1,
+  });
+
+  window.siteLenis = lenis;
+
+  if (window.gsap && window.ScrollTrigger) {
+    lenis.on("scroll", ScrollTrigger.update);
+    gsap.ticker.add((time) => {
+      lenis.raf(time * 1000);
+    });
+    gsap.ticker.lagSmoothing(0);
+  } else {
+    const raf = (time) => {
+      lenis.raf(time);
+      requestAnimationFrame(raf);
+    };
+    requestAnimationFrame(raf);
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      lenis.stop();
+    } else {
+      lenis.start();
+      lenis.resize();
+    }
+  });
+
+  return lenis;
+}
 
 function initDecorativeLoops() {
   if (!window.gsap || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -335,16 +449,16 @@ function initCharacterMaskReveal() {
   const canvas = document.querySelector(".framer-reveal-canvas");
   const devil = document.querySelector(".character--devil");
 
-  if (!stack || !canvas || !devil || !window.THREE) return;
+  if (!stack || !canvas || !devil) return;
 
-  const THREE = window.THREE;
   const renderer = new THREE.WebGLRenderer({
     canvas,
     alpha: true,
     antialias: true,
     premultipliedAlpha: false,
   });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const getPixelRatio = () => Math.min(window.devicePixelRatio || 1, window.innerWidth < 768 ? 1.25 : 1.5);
+  renderer.setPixelRatio(getPixelRatio());
   renderer.setClearColor(0x000000, 0);
 
   const scene = new THREE.Scene();
@@ -372,6 +486,9 @@ function initCharacterMaskReveal() {
   let revealMesh;
   let animationFrame;
   let isReady = false;
+  let isVisible = true;
+  let shouldAnimate = false;
+  let settleTimer;
 
   const blobMaterial = new THREE.ShaderMaterial({
     uniforms,
@@ -473,6 +590,7 @@ function initCharacterMaskReveal() {
     width = Math.max(1, Math.round(rect.width));
     height = Math.max(1, Math.round(rect.height));
 
+    renderer.setPixelRatio(getPixelRatio());
     renderer.setSize(width, height, false);
     uniforms.aspect.value = width / height;
 
@@ -498,6 +616,8 @@ function initCharacterMaskReveal() {
       revealMesh.position.x = width * x;
       revealMesh.position.y = height * bottomLockY - height * y;
     }
+
+    startAnimation();
   };
 
   const renderBlob = () => {
@@ -511,8 +631,13 @@ function initCharacterMaskReveal() {
     uniforms.prevFrame.value = rtPrevious.texture;
   };
 
+  const canRender = () => isReady && isVisible && !document.hidden;
+
   const animate = () => {
-    const dt = clock.getDelta();
+    animationFrame = null;
+    if (!canRender()) return;
+
+    const dt = Math.min(clock.getDelta(), 0.05);
     uniforms.time.value += dt;
     uniforms.dTime.value = dt;
 
@@ -520,7 +645,28 @@ function initCharacterMaskReveal() {
     renderer.clear();
     renderer.render(scene, camera);
 
+    if (shouldAnimate) {
+      animationFrame = requestAnimationFrame(animate);
+    }
+  };
+
+  function startAnimation() {
+    if (animationFrame || !canRender()) return;
+    clock.getDelta();
     animationFrame = requestAnimationFrame(animate);
+  }
+
+  const stopAnimation = () => {
+    if (!animationFrame) return;
+    cancelAnimationFrame(animationFrame);
+    animationFrame = null;
+  };
+
+  const settleAnimation = () => {
+    window.clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(() => {
+      shouldAnimate = false;
+    }, 1200);
   };
 
   const textureLoader = new THREE.TextureLoader();
@@ -537,7 +683,9 @@ function initCharacterMaskReveal() {
 
     resize();
     isReady = true;
-    animate();
+    shouldAnimate = true;
+    settleAnimation();
+    startAnimation();
   });
 
   const movePointer = (event) => {
@@ -545,16 +693,39 @@ function initCharacterMaskReveal() {
     const rect = stack.getBoundingClientRect();
     uniforms.pointer.value.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
     uniforms.pointer.value.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    shouldAnimate = true;
+    window.clearTimeout(settleTimer);
+    startAnimation();
   };
 
   const hidePointer = () => {
     uniforms.pointer.value.set(10, 10);
+    settleAnimation();
+    startAnimation();
   };
 
   stack.addEventListener("pointermove", movePointer);
   stack.addEventListener("pointerleave", hidePointer);
   window.addEventListener("resize", resize);
   window.addEventListener("devilControls:update", resize);
+
+  const observer = new IntersectionObserver(([entry]) => {
+    isVisible = entry.isIntersecting;
+    if (isVisible && shouldAnimate) {
+      startAnimation();
+    } else if (!isVisible) {
+      stopAnimation();
+    }
+  }, { threshold: 0.01 });
+  observer.observe(stack);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopAnimation();
+    } else if (shouldAnimate) {
+      startAnimation();
+    }
+  });
 }
 
 function initStackedCinematicScroll() {
@@ -568,14 +739,27 @@ function initStackedCinematicScroll() {
   const mangaStage = document.querySelector(".manga-story__stage");
   const mangaFrames = Array.from(document.querySelectorAll(".manga-story__frame"));
   const mangaCopies = Array.from(document.querySelectorAll(".manga-story__copy"));
+  const swordSection = document.querySelector(".sword-hero-section");
+  const pixelStage = document.querySelector(".pixel-transition-stage");
+  const pixelGrid = document.querySelector(".pixel-transition-grid");
 
   if (!transition || !stack || !hero || !nextSection || !media || !window.gsap || !window.ScrollTrigger) return;
 
   gsap.registerPlugin(ScrollTrigger);
 
+  let pixelBlocks = pixelGrid ? buildPixelTransitionBlocks(pixelGrid) : [];
   const storyStepCount = Math.max(mangaFrames.length - 1, 1);
-  const timelineUnits = mangaFrames.length ? 3.45 + storyStepCount * 1.62 : 1;
+  const hasPixelHandoff = Boolean(swordSection && pixelStage && pixelBlocks.length && mangaSection);
+  const storyTimelineUnits = mangaFrames.length ? 3.45 + storyStepCount * 1.62 : 1;
+  const handoffTimelineUnits = hasPixelHandoff ? 0.16 : 0;
+  const timelineUnits = storyTimelineUnits + handoffTimelineUnits;
   const getTotalScroll = () => Math.round(window.innerHeight * timelineUnits);
+  const pixelTriggerProgress = hasPixelHandoff ? 0.992 : Number.POSITIVE_INFINITY;
+  const scheduleRefresh = debounce(() => {
+    syncSceneHeight();
+    ScrollTrigger.refresh();
+    window.siteLenis?.resize?.();
+  }, 140);
 
   const syncSceneHeight = () => {
     const sceneHeight = Math.max(hero.offsetHeight, window.innerHeight);
@@ -621,12 +805,235 @@ function initStackedCinematicScroll() {
     });
   }
 
+  if (swordSection) {
+    gsap.set(swordSection, {
+      yPercent: 0,
+      autoAlpha: 0,
+      visibility: "hidden",
+      pointerEvents: "none",
+      scale: 1.015,
+      transformOrigin: "center center",
+    });
+  }
+
+  if (pixelStage && pixelBlocks.length) {
+    gsap.set(pixelStage, { autoAlpha: 0, visibility: "hidden" });
+    gsap.set(pixelBlocks, { autoAlpha: 0 });
+  }
+
+  let isPixelHandoffAnimating = false;
+  let pixelHandoffState = "manga";
+  const finalMangaFrame = mangaFrames[mangaFrames.length - 1];
+  const finalMangaCopy = mangaCopies[mangaCopies.length - 1];
+  const finalMangaImage = finalMangaFrame?.querySelector("img");
+
+  const preventPixelScroll = (event) => {
+    if (!isPixelHandoffAnimating) return;
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
+  const lockPixelScroll = () => {
+    window.addEventListener("wheel", preventPixelScroll, { passive: false, capture: true });
+    window.addEventListener("touchmove", preventPixelScroll, { passive: false, capture: true });
+  };
+
+  const unlockPixelScroll = () => {
+    window.removeEventListener("wheel", preventPixelScroll, { capture: true });
+    window.removeEventListener("touchmove", preventPixelScroll, { capture: true });
+  };
+
+  const setFinalMangaVisualState = () => {
+    if (!mangaSection || !finalMangaFrame) return;
+
+    gsap.set(mangaSection, {
+      yPercent: 0,
+      autoAlpha: 1,
+      visibility: "visible",
+      pointerEvents: "auto",
+    });
+
+    if (mangaStage) {
+      gsap.set(mangaStage, {
+        y: "-5vw",
+        height: "100%",
+      });
+    }
+
+    mangaCopies.slice(0, -1).forEach((copy) => {
+      gsap.set(copy, { y: "-72vh" });
+    });
+
+    gsap.set(finalMangaFrame, {
+      autoAlpha: 1,
+      clipPath: "inset(0% 0 0 0)",
+      scale: 1,
+    });
+
+    if (finalMangaImage) {
+      gsap.set(finalMangaImage, { scale: 1 });
+    }
+
+    if (finalMangaCopy) {
+      gsap.set(finalMangaCopy, {
+        autoAlpha: 1,
+        y: 0,
+      });
+    }
+  };
+
+  const showMangaHandoffState = () => {
+    gsap.set(pixelStage, { autoAlpha: 0, visibility: "hidden" });
+    gsap.set(pixelBlocks, { autoAlpha: 0 });
+    gsap.set(swordSection, {
+      autoAlpha: 0,
+      visibility: "hidden",
+      pointerEvents: "none",
+      scale: 1.015,
+    });
+    setFinalMangaVisualState();
+    pixelHandoffState = "manga";
+    window.dispatchEvent(new Event("swordScene:deactivate"));
+  };
+
+  const showSwordHandoffState = () => {
+    gsap.set(pixelStage, { autoAlpha: 0, visibility: "hidden" });
+    gsap.set(pixelBlocks, { autoAlpha: 0 });
+    gsap.set(mangaSection, {
+      autoAlpha: 0,
+      visibility: "hidden",
+      pointerEvents: "none",
+    });
+    gsap.set(swordSection, {
+      autoAlpha: 1,
+      visibility: "visible",
+      pointerEvents: "auto",
+      scale: 1,
+    });
+    pixelHandoffState = "sword";
+    window.dispatchEvent(new Event("swordScene:activate"));
+  };
+
+  const createPixelHandoffTimeline = (direction) => {
+    if (!hasPixelHandoff) return null;
+
+    const isForward = direction === "forward";
+    const coverDelayKey = isForward ? "forwardDelay" : "reverseDelay";
+    const clearDelayKey = isForward ? "forwardClearDelay" : "reverseClearDelay";
+    const coverEnd = pixelBlocks.reduce((maxDelay, block) => {
+      return Math.max(maxDelay, Number(block.dataset[coverDelayKey] || 0));
+    }, 0) + 0.001;
+    const revealStart = coverEnd + 0.08;
+    const clearEnd = pixelBlocks.reduce((maxDelay, block) => {
+      return Math.max(maxDelay, Number(block.dataset[clearDelayKey] || 0));
+    }, 0) + revealStart + 0.001;
+
+    const timeline = gsap.timeline({
+      paused: true,
+      defaults: { ease: "none" },
+      onStart: () => {
+        isPixelHandoffAnimating = true;
+        pixelHandoffState = isForward ? "forward" : "backward";
+        lockPixelScroll();
+      },
+      onComplete: () => {
+        isPixelHandoffAnimating = false;
+        pixelHandoffState = isForward ? "sword" : "manga";
+        unlockPixelScroll();
+      },
+    });
+
+    timeline
+      .set(pixelStage, { autoAlpha: 1, visibility: "visible" }, 0)
+      .set(pixelBlocks, { autoAlpha: 0 }, 0);
+
+    pixelBlocks.forEach((block) => {
+      timeline.to(block, {
+        autoAlpha: 1,
+        duration: 0,
+      }, Number(block.dataset[coverDelayKey] || 0));
+    });
+
+    timeline
+      .set(isForward ? swordSection : mangaSection, {
+        autoAlpha: 1,
+        visibility: "visible",
+        pointerEvents: "auto",
+        scale: isForward ? 1.008 : 1,
+      }, coverEnd)
+      .set(isForward ? mangaSection : swordSection, {
+        autoAlpha: 0,
+        visibility: "hidden",
+        pointerEvents: "none",
+      }, coverEnd)
+      .call(() => {
+        if (isForward) {
+          window.dispatchEvent(new Event("resize"));
+          window.dispatchEvent(new Event("swordScene:activate"));
+        } else {
+          window.dispatchEvent(new Event("swordScene:deactivate"));
+          setFinalMangaVisualState();
+        }
+      }, null, coverEnd + 0.01);
+
+    if (isForward) {
+      timeline.to(swordSection, {
+        scale: 1,
+        duration: 0.32,
+        ease: "power3.out",
+      }, coverEnd);
+    }
+
+    pixelBlocks.forEach((block) => {
+      timeline.to(block, {
+        autoAlpha: 0,
+        duration: 0,
+      }, revealStart + Number(block.dataset[clearDelayKey] || 0));
+    });
+
+    timeline
+      .set(pixelBlocks, { autoAlpha: 0 }, clearEnd)
+      .set(pixelStage, { autoAlpha: 0, visibility: "hidden" }, clearEnd);
+
+    return timeline;
+  };
+
+  const pixelForwardTimeline = createPixelHandoffTimeline("forward");
+  const pixelBackwardTimeline = createPixelHandoffTimeline("backward");
+
+  const playPixelForward = () => {
+    if (!pixelForwardTimeline || isPixelHandoffAnimating || pixelHandoffState !== "manga") return;
+    pixelBackwardTimeline?.pause(0);
+    setFinalMangaVisualState();
+    pixelForwardTimeline.play(0);
+  };
+
+  const playPixelBackward = () => {
+    if (!pixelBackwardTimeline || isPixelHandoffAnimating || pixelHandoffState !== "sword") return;
+    pixelForwardTimeline?.pause(0);
+    pixelBackwardTimeline.play(0);
+  };
+
+  let isVideoPlaying = false;
+
   const playVideo = () => {
-    if (!video) return;
+    if (!video || isVideoPlaying) return;
+    isVideoPlaying = true;
     video.muted = true;
     video.loop = true;
     video.playsInline = true;
-    video.play().catch(() => {});
+    video.play().catch(() => {
+      isVideoPlaying = false;
+    });
+  };
+
+  const pauseVideo = (shouldReset = false) => {
+    if (!video) return;
+    video.pause();
+    isVideoPlaying = false;
+    if (shouldReset) {
+      video.currentTime = 0;
+    }
   };
 
   const master = gsap.timeline({
@@ -644,13 +1051,19 @@ function initStackedCinematicScroll() {
       onEnter: playVideo,
       onEnterBack: playVideo,
       onUpdate: (self) => {
-        if (video && self.progress > 0.04) playVideo();
+        if (self.progress > 0.04 && self.progress < 0.62) {
+          playVideo();
+        } else if (self.progress >= 0.68) {
+          pauseVideo();
+        }
+        if (self.progress >= pixelTriggerProgress) {
+          playPixelForward();
+        } else if (self.progress < pixelTriggerProgress - 0.003) {
+          playPixelBackward();
+        }
       },
-      onLeaveBack: () => {
-        if (!video) return;
-        video.pause();
-        video.currentTime = 0;
-      },
+      onLeave: pauseVideo,
+      onLeaveBack: () => pauseVideo(true),
     },
   });
 
@@ -735,35 +1148,30 @@ function initStackedCinematicScroll() {
     cursor += 1.62;
   }
 
-    const finalCopy = mangaCopies[mangaCopies.length - 1];
-    if (finalCopy) {
-      master.to(finalCopy, {
-        y: "-56vh",
-        duration: 0.9,
-      }, cursor + 0.18);
+    if (hasPixelHandoff) {
+      const handoffHold = { value: 0 };
+      master.call(setFinalMangaVisualState, null, cursor);
+      master.to(handoffHold, {
+        value: 1,
+        duration: 0.2,
+      }, cursor + 0.08);
     }
+
   }
 
   if (video) {
     video.addEventListener("loadedmetadata", () => {
-      playVideo();
-      ScrollTrigger.refresh();
+      scheduleRefresh();
     }, { once: true });
   }
 
   mangaFrames.forEach((frame) => {
     const image = frame.querySelector("img");
     if (image) {
-      image.addEventListener("load", () => ScrollTrigger.refresh(), { once: true });
+      image.addEventListener("load", scheduleRefresh, { once: true });
     }
   });
 
-  window.addEventListener("resize", () => {
-    syncSceneHeight();
-    ScrollTrigger.refresh();
-  });
-  window.addEventListener("load", () => {
-    syncSceneHeight();
-    ScrollTrigger.refresh();
-  }, { once: true });
+  window.addEventListener("resize", scheduleRefresh);
+  window.addEventListener("load", scheduleRefresh, { once: true });
 }

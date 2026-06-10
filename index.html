@@ -5,7 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Neonverse Asta Hero</title>
     <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="vendor/lenis.css" />
     <link rel="stylesheet" href="styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://esm.sh/three@0.160.0",
+          "three/addons/": "https://esm.sh/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
   </head>
   <body>
     <div class="landing-transition">
@@ -126,11 +135,10 @@
       <div class="cinematic-video__media">
         <video
           class="cinematic-video__asset"
-          autoplay
           muted
           loop
           playsinline
-          preload="auto"
+          preload="metadata"
         >
           <source src="video asset/next section video.mp4" type="video/mp4" />
         </video>
@@ -194,6 +202,19 @@
       </article>
       </div>
     </section>
+    <section class="sword-hero-section" aria-label="3D anime sword hero">
+      <canvas id="swordScene"></canvas>
+      <div class="vignette-overlay" aria-hidden="true"></div>
+      <button class="carousel-arrow carousel-arrow-left" type="button" aria-label="Show next weapon">
+        <span aria-hidden="true"></span>
+      </button>
+      <button class="carousel-arrow carousel-arrow-right" type="button" aria-label="Show previous weapon">
+        <span aria-hidden="true"></span>
+      </button>
+    </section>
+    <div class="pixel-transition-stage" aria-hidden="true">
+      <div class="pixel-transition-grid"></div>
+    </div>
       </div>
     </div>
     <aside class="devil-tuner" aria-label="Temporary Devil Union image controls">
@@ -224,7 +245,8 @@
     </aside>
     <script src="vendor/gsap.min.js"></script>
     <script src="vendor/ScrollTrigger.min.js"></script>
-    <script src="vendor/three.min.js"></script>
-    <script src="script.js"></script>
+    <script src="vendor/lenis.min.js"></script>
+    <script type="module" src="script.js"></script>
+    <script type="module" src="site-3d/script.js"></script>
   </body>
 </html>
