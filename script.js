@@ -1,3 +1,7 @@
+import * as THREE from "three";
+
+window.THREE = THREE;
+
 const gsap = window.gsap;
 const ScrollTrigger = window.ScrollTrigger;
 
@@ -22,14 +26,12 @@ function buildPixelTransitionBlocks(grid) {
   const viewportHeight = Math.max(window.innerHeight, document.documentElement.clientHeight || 0, window.screen?.height || 0);
   const blockCount = Math.ceil(viewportHeight / blockSize) + 4;
   const pixelPalette = [
+    "var(--ink)",
+    "var(--muted-ink)",
     "#030303",
-    "#070303",
-    "#120606",
-    "#1a0505",
-    "#2b0707",
-    "#4e0909",
-    "#7a0508",
-    "#ff1717",
+    "var(--deep-red)",
+    "var(--red)",
+    "var(--paper)",
   ];
 
   grid.innerHTML = "";
@@ -122,7 +124,6 @@ window.addEventListener("DOMContentLoaded", () => {
   initDecorativeLoops();
   initHeroAmbientText();
   initInfoCardTilt();
-  initDevilTuner();
   initCharacterMaskReveal();
   initStackedCinematicScroll();
   loadSwordSceneModule();
@@ -134,7 +135,7 @@ function loadSwordSceneModule() {
   const load = () => {
     const script = document.createElement("script");
     script.type = "module";
-    script.src = "site-3d/script.js?v=restore-20260607";
+    script.src = "site-3d/script.js?v=wall-pbr-20260617";
     script.dataset.swordSceneModule = "true";
     document.body.appendChild(script);
   };
@@ -308,110 +309,6 @@ function initInfoCardTilt() {
   });
 
   card.addEventListener("pointerleave", reset);
-}
-
-function initDevilTuner() {
-  const panel = document.querySelector(".devil-tuner");
-  const stack = document.querySelector(".character-stack");
-
-  if (!panel || !stack) return;
-
-  const controls = {
-    scale: panel.querySelector('[data-devil-control="scale"]'),
-    x: panel.querySelector('[data-devil-control="x"]'),
-    y: panel.querySelector('[data-devil-control="y"]'),
-  };
-  const outputs = {
-    scale: panel.querySelector('[data-devil-output="scale"]'),
-    x: panel.querySelector('[data-devil-output="x"]'),
-    y: panel.querySelector('[data-devil-output="y"]'),
-  };
-  const resetButton = panel.querySelector(".devil-tuner__reset");
-  const storageKey = "asta-devil-image-controls";
-  const panelStorageKey = "asta-devil-tuner-minimized";
-  const toggleButton = panel.querySelector(".devil-tuner__toggle");
-
-  const readDefaults = () => {
-    const styles = getComputedStyle(stack);
-    return {
-      scale: parseFloat(styles.getPropertyValue("--devil-scale")) || 1,
-      x: parseFloat(styles.getPropertyValue("--devil-x")) || 0,
-      y: parseFloat(styles.getPropertyValue("--devil-y")) || 0,
-    };
-  };
-
-  const defaults = readDefaults();
-
-  const loadSaved = () => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey));
-      if (!saved) return defaults;
-      return {
-        scale: Number.isFinite(saved.scale) ? saved.scale : defaults.scale,
-        x: Number.isFinite(saved.x) ? saved.x : defaults.x,
-        y: Number.isFinite(saved.y) ? saved.y : defaults.y,
-      };
-    } catch {
-      return defaults;
-    }
-  };
-
-  const format = (key, value) => (key === "scale" ? value.toFixed(2) : `${value.toFixed(1)}%`);
-
-  const applyValues = (values, shouldSave = true) => {
-    stack.style.setProperty("--devil-scale", values.scale);
-    stack.style.setProperty("--devil-x", `${values.x}%`);
-    stack.style.setProperty("--devil-y", `${values.y}%`);
-
-    controls.scale.value = values.scale;
-    controls.x.value = values.x;
-    controls.y.value = values.y;
-
-    outputs.scale.textContent = format("scale", values.scale);
-    outputs.x.textContent = format("x", values.x);
-    outputs.y.textContent = format("y", values.y);
-
-    if (shouldSave) {
-      localStorage.setItem(storageKey, JSON.stringify(values));
-    }
-
-    window.dispatchEvent(new CustomEvent("devilControls:update"));
-  };
-
-  let values = loadSaved();
-  applyValues(values, false);
-
-  const setPanelMinimized = (isMinimized) => {
-    panel.classList.toggle("is-minimized", isMinimized);
-    toggleButton.setAttribute("aria-expanded", String(!isMinimized));
-    toggleButton.setAttribute(
-      "aria-label",
-      isMinimized ? "Open Devil image controls" : "Minimize Devil image controls",
-    );
-    localStorage.setItem(panelStorageKey, String(isMinimized));
-  };
-
-  setPanelMinimized(localStorage.getItem(panelStorageKey) === "true");
-
-  toggleButton.addEventListener("click", () => {
-    setPanelMinimized(!panel.classList.contains("is-minimized"));
-  });
-
-  Object.entries(controls).forEach(([key, control]) => {
-    control.addEventListener("input", () => {
-      values = {
-        ...values,
-        [key]: parseFloat(control.value),
-      };
-      applyValues(values);
-    });
-  });
-
-  resetButton.addEventListener("click", () => {
-    values = { ...defaults };
-    localStorage.removeItem(storageKey);
-    applyValues(values, false);
-  });
 }
 
 function initCharacterMaskReveal() {
@@ -642,7 +539,6 @@ function initCharacterMaskReveal() {
 
   const textureLoader = new THREE.TextureLoader();
   textureLoader.load(devil.getAttribute("src"), (texture) => {
-    texture.encoding = THREE.sRGBEncoding;
     uniforms.revealMap.value = texture;
 
     blobScene = new THREE.Scene();
@@ -713,19 +609,43 @@ function initStackedCinematicScroll() {
   const swordSection = document.querySelector(".sword-hero-section");
   const pixelStage = document.querySelector(".pixel-transition-stage");
   const pixelGrid = document.querySelector(".pixel-transition-grid");
+  const finalSection = document.querySelector(".landing-stack > .final-ending");
+  const finalTrack = finalSection?.querySelector(".final-chapter-track");
+  const finalTitleScene = finalSection?.querySelector(".final-title-scene");
+  const finalTitle = finalSection?.querySelector(".final-title-scene__title");
+  const finalMediaScene = finalSection?.querySelector(".final-image-reveal-scene");
+  const finalMedia = finalSection?.querySelector(".final-image-reveal-scene__media");
+  const finalAsset = finalSection?.querySelector(".final-image-reveal-scene__asset");
+  const finalFooter = finalSection?.querySelector(".site-footer-ending");
 
   if (!transition || !stack || !hero || !nextSection || !media || !window.gsap || !window.ScrollTrigger) return;
 
   gsap.registerPlugin(ScrollTrigger);
 
   let pixelBlocks = pixelGrid ? buildPixelTransitionBlocks(pixelGrid) : [];
+  const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const storyStepCount = Math.max(mangaFrames.length - 1, 1);
   const hasPixelHandoff = Boolean(swordSection && pixelStage && pixelBlocks.length && mangaSection);
-  const storyTimelineUnits = mangaFrames.length ? 3.45 + storyStepCount * 1.62 : 1;
-  const handoffTimelineUnits = hasPixelHandoff ? 0.16 : 0;
-  const timelineUnits = storyTimelineUnits + handoffTimelineUnits;
+  const hasFinalHandoff = Boolean(finalSection && finalTrack && finalMedia && swordSection && pixelStage && pixelBlocks.length);
+  const storyStartUnit = 2.32;
+  const storyStepUnit = 1.62;
+  const storyCompleteUnit = mangaFrames.length ? storyStartUnit + storyStepCount * storyStepUnit : 1;
+  const storyPostRevealNudgeUnits = hasPixelHandoff ? 0.1 : 0;
+  const storyTimelineUnits = storyCompleteUnit + storyPostRevealNudgeUnits;
+  const pixelHandoffTimelineUnits = hasPixelHandoff ? 0.16 : 0;
+  const swordHoldTimelineUnits = hasFinalHandoff ? 0.36 : 0;
+  const finalHandoffTimelineUnits = hasFinalHandoff ? 0.16 : 0;
+  const finalTimelineUnits = hasFinalHandoff ? 1.12 : 0;
+  const timelineUnits = storyTimelineUnits + pixelHandoffTimelineUnits + swordHoldTimelineUnits + finalHandoffTimelineUnits + finalTimelineUnits;
   const getTotalScroll = () => Math.round(window.innerHeight * timelineUnits);
-  const pixelTriggerProgress = hasPixelHandoff ? 0.992 : Number.POSITIVE_INFINITY;
+  const pixelTriggerProgress = hasPixelHandoff ? Math.min(0.985, (storyCompleteUnit + 0.04) / timelineUnits) : Number.POSITIVE_INFINITY;
+  const finalTriggerProgress = hasFinalHandoff ? Math.min(0.992, (storyTimelineUnits + pixelHandoffTimelineUnits + swordHoldTimelineUnits) / timelineUnits) : Number.POSITIVE_INFINITY;
+  const getFinalFooterGap = () => window.innerWidth * 0.06;
+  const getFinalFooterTargetY = () => {
+    const footerHeight = finalFooter?.offsetHeight || window.innerHeight * 0.2;
+    return -Math.round(window.innerHeight + getFinalFooterGap() + footerHeight);
+  };
+  const finalRevealStartOffset = 0.24;
   const scheduleRefresh = debounce(() => {
     syncSceneHeight();
     ScrollTrigger.refresh();
@@ -791,8 +711,55 @@ function initStackedCinematicScroll() {
     gsap.set(pixelBlocks, { autoAlpha: 0 });
   }
 
+  if (finalSection) {
+    gsap.set(finalSection, {
+      autoAlpha: 0,
+      visibility: "hidden",
+      pointerEvents: "none",
+    });
+  }
+
+  if (finalTitleScene) {
+    gsap.set(finalTitleScene, { autoAlpha: 1 });
+  }
+
+  if (finalTrack) {
+    gsap.set(finalTrack, { y: 0 });
+  }
+
+  if (finalTitle) {
+    gsap.set(finalTitle, { autoAlpha: 1 });
+  }
+
+  if (finalMediaScene) {
+    gsap.set(finalMediaScene, { autoAlpha: 1 });
+  }
+
+  if (finalMedia) {
+    gsap.set(finalMedia, {
+      xPercent: -50,
+      yPercent: -50,
+      autoAlpha: 1,
+      top: "50%",
+      scale: prefersReducedMotion ? 1 : 0.72,
+      width: prefersReducedMotion ? "100vw" : "min(76vw, 1180px)",
+      height: prefersReducedMotion ? "100%" : "auto",
+      clipPath: prefersReducedMotion ? "inset(0% 0% round 0px)" : "inset(18% 24% round 0px)",
+    });
+  }
+
+  if (finalAsset) {
+    gsap.set(finalAsset, { scale: prefersReducedMotion ? 1 : 1.08 });
+  }
+
+  if (finalFooter) {
+    gsap.set(finalFooter, { autoAlpha: 1 });
+  }
+
   let isPixelHandoffAnimating = false;
   let pixelHandoffState = "manga";
+  let finalHandoffState = "sword";
+  let pixelScrollLockTimer = 0;
   const finalMangaFrame = mangaFrames[mangaFrames.length - 1];
   const finalMangaCopy = mangaCopies[mangaCopies.length - 1];
   const finalMangaImage = finalMangaFrame?.querySelector("img");
@@ -804,11 +771,17 @@ function initStackedCinematicScroll() {
   };
 
   const lockPixelScroll = () => {
+    window.clearTimeout(pixelScrollLockTimer);
     window.addEventListener("wheel", preventPixelScroll, { passive: false, capture: true });
     window.addEventListener("touchmove", preventPixelScroll, { passive: false, capture: true });
+    pixelScrollLockTimer = window.setTimeout(() => {
+      isPixelHandoffAnimating = false;
+      unlockPixelScroll();
+    }, 1800);
   };
 
   const unlockPixelScroll = () => {
+    window.clearTimeout(pixelScrollLockTimer);
     window.removeEventListener("wheel", preventPixelScroll, { capture: true });
     window.removeEventListener("touchmove", preventPixelScroll, { capture: true });
   };
@@ -861,8 +834,16 @@ function initStackedCinematicScroll() {
       pointerEvents: "none",
       scale: 1.015,
     });
+    if (finalSection) {
+      gsap.set(finalSection, {
+        autoAlpha: 0,
+        visibility: "hidden",
+        pointerEvents: "none",
+      });
+    }
     setFinalMangaVisualState();
     pixelHandoffState = "manga";
+    finalHandoffState = "sword";
     window.dispatchEvent(new Event("swordScene:deactivate"));
   };
 
@@ -880,7 +861,15 @@ function initStackedCinematicScroll() {
       pointerEvents: "auto",
       scale: 1,
     });
+    if (finalSection) {
+      gsap.set(finalSection, {
+        autoAlpha: 0,
+        visibility: "hidden",
+        pointerEvents: "none",
+      });
+    }
     pixelHandoffState = "sword";
+    finalHandoffState = "sword";
     window.dispatchEvent(new Event("swordScene:activate"));
   };
 
@@ -971,6 +960,85 @@ function initStackedCinematicScroll() {
   const pixelForwardTimeline = createPixelHandoffTimeline("forward");
   const pixelBackwardTimeline = createPixelHandoffTimeline("backward");
 
+  const createFinalHandoffTimeline = (direction) => {
+    if (!hasFinalHandoff) return null;
+
+    const isForward = direction === "forward";
+    const coverDelayKey = isForward ? "forwardDelay" : "reverseDelay";
+    const clearDelayKey = isForward ? "forwardClearDelay" : "reverseClearDelay";
+    const coverEnd = pixelBlocks.reduce((maxDelay, block) => {
+      return Math.max(maxDelay, Number(block.dataset[coverDelayKey] || 0));
+    }, 0) + 0.001;
+    const revealStart = coverEnd + 0.08;
+    const clearEnd = pixelBlocks.reduce((maxDelay, block) => {
+      return Math.max(maxDelay, Number(block.dataset[clearDelayKey] || 0));
+    }, 0) + revealStart + 0.001;
+
+    const timeline = gsap.timeline({
+      paused: true,
+      defaults: { ease: "none" },
+      onStart: () => {
+        isPixelHandoffAnimating = true;
+        finalHandoffState = isForward ? "forward" : "backward";
+        lockPixelScroll();
+      },
+      onComplete: () => {
+        isPixelHandoffAnimating = false;
+        finalHandoffState = isForward ? "final" : "sword";
+        pixelHandoffState = "sword";
+        unlockPixelScroll();
+      },
+    });
+
+    timeline
+      .set(pixelStage, { autoAlpha: 1, visibility: "visible" }, 0)
+      .set(pixelBlocks, { autoAlpha: 0 }, 0);
+
+    pixelBlocks.forEach((block) => {
+      timeline.to(block, {
+        autoAlpha: 1,
+        duration: 0,
+      }, Number(block.dataset[coverDelayKey] || 0));
+    });
+
+    timeline
+      .set(isForward ? finalSection : swordSection, {
+        autoAlpha: 1,
+        visibility: "visible",
+        pointerEvents: "auto",
+        scale: 1,
+      }, coverEnd)
+      .set(isForward ? swordSection : finalSection, {
+        autoAlpha: 0,
+        visibility: "hidden",
+        pointerEvents: "none",
+      }, coverEnd)
+      .call(() => {
+        if (isForward) {
+          window.dispatchEvent(new Event("swordScene:deactivate"));
+        } else {
+          window.dispatchEvent(new Event("resize"));
+          window.dispatchEvent(new Event("swordScene:activate"));
+        }
+      }, null, coverEnd + 0.01);
+
+    pixelBlocks.forEach((block) => {
+      timeline.to(block, {
+        autoAlpha: 0,
+        duration: 0,
+      }, revealStart + Number(block.dataset[clearDelayKey] || 0));
+    });
+
+    timeline
+      .set(pixelBlocks, { autoAlpha: 0 }, clearEnd)
+      .set(pixelStage, { autoAlpha: 0, visibility: "hidden" }, clearEnd);
+
+    return timeline;
+  };
+
+  const finalForwardTimeline = createFinalHandoffTimeline("forward");
+  const finalBackwardTimeline = createFinalHandoffTimeline("backward");
+
   const playPixelForward = () => {
     if (!pixelForwardTimeline || isPixelHandoffAnimating || pixelHandoffState !== "manga") return;
     pixelBackwardTimeline?.pause(0);
@@ -979,9 +1047,44 @@ function initStackedCinematicScroll() {
   };
 
   const playPixelBackward = () => {
-    if (!pixelBackwardTimeline || isPixelHandoffAnimating || pixelHandoffState !== "sword") return;
+    if (!pixelBackwardTimeline || isPixelHandoffAnimating || pixelHandoffState !== "sword" || finalHandoffState === "final") return;
     pixelForwardTimeline?.pause(0);
     pixelBackwardTimeline.play(0);
+  };
+
+  const playFinalForward = () => {
+    if (!finalForwardTimeline || isPixelHandoffAnimating || finalHandoffState !== "sword") return;
+    if (pixelHandoffState !== "sword") {
+      pixelForwardTimeline?.pause(0);
+      pixelBackwardTimeline?.pause(0);
+      setFinalMangaVisualState();
+      if (mangaSection) {
+        gsap.set(mangaSection, {
+          autoAlpha: 0,
+          visibility: "hidden",
+          pointerEvents: "none",
+        });
+      }
+      if (swordSection) {
+        gsap.set(swordSection, {
+          autoAlpha: 1,
+          visibility: "visible",
+          pointerEvents: "auto",
+          scale: 1,
+        });
+        window.dispatchEvent(new Event("resize"));
+        window.dispatchEvent(new Event("swordScene:activate"));
+      }
+      pixelHandoffState = "sword";
+    }
+    finalBackwardTimeline?.pause(0);
+    finalForwardTimeline.play(0);
+  };
+
+  const playFinalBackward = () => {
+    if (!finalBackwardTimeline || isPixelHandoffAnimating || finalHandoffState !== "final") return;
+    finalForwardTimeline?.pause(0);
+    finalBackwardTimeline.play(0);
   };
 
   let isVideoPlaying = false;
@@ -1026,7 +1129,12 @@ function initStackedCinematicScroll() {
         } else if (self.progress >= 0.68) {
           pauseVideo();
         }
-        if (self.progress >= pixelTriggerProgress) {
+        if (self.progress >= finalTriggerProgress) {
+          playFinalForward();
+        } else if (self.progress < finalTriggerProgress - 0.003) {
+          playFinalBackward();
+        }
+        if (self.progress >= pixelTriggerProgress && self.progress < finalTriggerProgress) {
           playPixelForward();
         } else if (self.progress < pixelTriggerProgress - 0.003) {
           playPixelBackward();
@@ -1036,6 +1144,12 @@ function initStackedCinematicScroll() {
       onLeaveBack: () => pauseVideo(true),
     },
   });
+
+  const timelineDurationHold = { value: 0 };
+  master.to(timelineDurationHold, {
+    value: 1,
+    duration: timelineUnits,
+  }, 0);
 
   master
     // Section overlap: the dark scene moves upward over the pinned hero.
@@ -1054,7 +1168,7 @@ function initStackedCinematicScroll() {
     }, 0.38);
 
   if (mangaSection && mangaFrames.length) {
-    const storyStart = 2.32;
+    const storyStart = storyStartUnit;
 
     const firstImage = mangaFrames[0].querySelector("img");
 
@@ -1115,7 +1229,7 @@ function initStackedCinematicScroll() {
       }, cursor + 0.62);
     }
 
-    cursor += 1.62;
+    cursor += storyStepUnit;
   }
 
     if (hasPixelHandoff) {
@@ -1127,6 +1241,54 @@ function initStackedCinematicScroll() {
       }, cursor + 0.08);
     }
 
+  }
+
+  if (hasFinalHandoff) {
+    const finalStart = storyTimelineUnits + pixelHandoffTimelineUnits + swordHoldTimelineUnits + finalHandoffTimelineUnits;
+
+    if (prefersReducedMotion) {
+      master
+        .set(finalTrack, { y: getFinalFooterTargetY }, finalStart)
+        .set(finalMedia, {
+          xPercent: -50,
+          yPercent: -50,
+          autoAlpha: 1,
+          top: "50%",
+          scale: 1,
+          clipPath: "inset(0% 0% round 0px)",
+          width: "100vw",
+          height: "100%",
+        }, finalStart)
+        .set(finalAsset, { scale: 1 }, finalStart)
+        .set(finalFooter, { autoAlpha: 1 }, finalStart);
+    } else {
+      master
+        .set(finalTrack, { y: 0 }, finalStart)
+        .to(finalTrack, {
+          y: () => -window.innerHeight,
+          duration: 1,
+        }, finalStart)
+        .to(finalMedia, {
+          top: "50%",
+          yPercent: -50,
+          width: "100vw",
+          scale: 1,
+          duration: 0.36,
+        }, finalStart + finalRevealStartOffset)
+        .to(finalMedia, {
+          clipPath: "inset(0% 0% round 0px)",
+          height: "100%",
+          duration: 0.62,
+        }, finalStart + finalRevealStartOffset)
+        .to(finalAsset, {
+          scale: 1,
+          duration: 0.62,
+        }, finalStart + finalRevealStartOffset)
+        .to(finalTrack, {
+          y: getFinalFooterTargetY,
+          duration: 0.12,
+        }, finalStart + 1);
+    }
   }
 
   if (video) {
@@ -1141,6 +1303,10 @@ function initStackedCinematicScroll() {
       image.addEventListener("load", scheduleRefresh, { once: true });
     }
   });
+
+  if (finalAsset) {
+    finalAsset.addEventListener("load", scheduleRefresh, { once: true });
+  }
 
   window.addEventListener("resize", scheduleRefresh);
   window.addEventListener("load", scheduleRefresh, { once: true });

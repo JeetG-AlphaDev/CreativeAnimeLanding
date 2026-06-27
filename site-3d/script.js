@@ -198,17 +198,8 @@ function init() {
 }
 
 function createWall() {
-  const wallMaterial = new THREE.MeshStandardMaterial({
-    color: '#151212',
-    roughness: 0.9,
-    metalness: 0.02
-  });
-
-  const centerMaterial = new THREE.MeshStandardMaterial({
-    color: '#121010',
-    roughness: 0.86,
-    metalness: 0.04
-  });
+  const wallMaterial = createWallPBRMaterial(5.8, 2.5, '#2a211e');
+  const centerMaterial = createWallPBRMaterial(2.1, 2.05, '#241d1b');
 
   const trimMaterial = new THREE.MeshStandardMaterial({
     color: '#0b0b0d',
@@ -220,12 +211,12 @@ function createWall() {
     color: '#070707'
   });
 
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(14.5, 6.35, 0.24), wallMaterial);
+  const wall = new THREE.Mesh(preparePbrGeometry(new THREE.BoxGeometry(14.5, 6.35, 0.24, 96, 48, 1)), wallMaterial);
   wall.position.set(0, 0.55, -2.1);
   wall.receiveShadow = true;
   backgroundGroup.add(wall);
 
-  const centerPanel = new THREE.Mesh(new THREE.BoxGeometry(5.15, 5.25, 0.06), centerMaterial);
+  const centerPanel = new THREE.Mesh(preparePbrGeometry(new THREE.BoxGeometry(5.15, 5.25, 0.06, 48, 48, 1)), centerMaterial);
   centerPanel.position.set(0, 0.55, -1.94);
   centerPanel.receiveShadow = true;
   backgroundGroup.add(centerPanel);
@@ -299,12 +290,8 @@ function createSidePanel(x) {
 
 function createCornerWall(x) {
   const side = Math.sign(x);
-  const sideMaterial = new THREE.MeshStandardMaterial({
-    color: '#08090a',
-    roughness: 0.88,
-    metalness: 0.04
-  });
-  const sideWall = new THREE.Mesh(new THREE.BoxGeometry(2.4, 6.35, 0.22), sideMaterial);
+  const sideMaterial = createWallPBRMaterial(1.35, 2.55, '#1b1817');
+  const sideWall = new THREE.Mesh(preparePbrGeometry(new THREE.BoxGeometry(2.4, 6.35, 0.22, 32, 48, 1)), sideMaterial);
   sideWall.position.set(x, 0.48, -1.72);
   sideWall.rotation.y = side * 0.28;
   sideWall.receiveShadow = true;
@@ -385,6 +372,48 @@ function createGroundPBRMaterial() {
     displacementScale: 0.022,
     displacementBias: -0.014
   });
+}
+
+function createWallPBRMaterial(repeatX, repeatY, tint = '#2b2421') {
+  const colorMap = loadWallTexture('Bricks089_4K-JPG_Color.jpg', repeatX, repeatY, true);
+  const normalMap = loadWallTexture('Bricks089_4K-JPG_NormalGL.jpg', repeatX, repeatY);
+  const roughnessMap = loadWallTexture('Bricks089_4K-JPG_Roughness.jpg', repeatX, repeatY);
+  const aoMap = loadWallTexture('Bricks089_4K-JPG_AmbientOcclusion.jpg', repeatX, repeatY);
+  const displacementMap = loadWallTexture('Bricks089_4K-JPG_Displacement.jpg', repeatX, repeatY);
+
+  return new THREE.MeshStandardMaterial({
+    map: colorMap,
+    normalMap,
+    roughnessMap,
+    aoMap,
+    displacementMap,
+    color: tint,
+    roughness: 0.88,
+    metalness: 0.015,
+    normalScale: new THREE.Vector2(0.34, 0.34),
+    aoMapIntensity: 0.8,
+    displacementScale: 0.018,
+    displacementBias: -0.011
+  });
+}
+
+function loadWallTexture(fileName, repeatX, repeatY, isColorMap = false) {
+  const texture = textureLoader.load(`./site-3d/wall-textures/${fileName}`);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(repeatX, repeatY);
+  texture.anisotropy = 4;
+
+  if (isColorMap) {
+    texture.colorSpace = THREE.SRGBColorSpace;
+  }
+
+  return texture;
+}
+
+function preparePbrGeometry(geometry) {
+  geometry.setAttribute('uv2', geometry.attributes.uv.clone());
+  return geometry;
 }
 
 function loadGroundTexture(fileName, isColorMap = false) {

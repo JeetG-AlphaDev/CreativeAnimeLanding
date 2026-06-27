@@ -18,7 +18,7 @@
   <body>
     <div class="landing-transition">
       <div class="landing-stack">
-      <main class="hero" aria-label="Neonverse anime hero">
+      <main id="top" class="hero" aria-label="Neonverse anime hero">
       <div class="hero__grain" aria-hidden="true"></div>
       <div class="hero__scanline hero__scanline--left" aria-hidden="true"></div>
       <div class="hero__scanline hero__scanline--right" aria-hidden="true"></div>
@@ -214,35 +214,80 @@
     <div class="pixel-transition-stage" aria-hidden="true">
       <div class="pixel-transition-grid"></div>
     </div>
-    <aside class="devil-tuner" aria-label="Temporary Devil Union image controls">
-      <div class="devil-tuner__head">
-        <strong>Devil Image Controls</strong>
-        <span>Temporary</span>
-        <button class="devil-tuner__toggle" type="button" aria-label="Minimize Devil image controls" aria-expanded="true">
-          <span aria-hidden="true"></span>
-        </button>
+    <section class="final-ending" aria-label="Final chapter">
+      <div class="final-chapter-bg" aria-hidden="true"></div>
+
+      <div class="final-chapter-track">
+        <section class="final-title-scene" aria-label="Japanese ending title">
+          <span class="final-title-scene__kicker">FINAL CHAPTER</span>
+          <h2 class="final-title-scene__title" lang="ja">終幕</h2>
+        </section>
+
+        <section class="final-image-reveal-scene" aria-label="Final image reveal">
+          <div class="final-image-reveal-scene__media" data-final-media>
+            <img
+              class="final-image-reveal-scene__asset"
+              src="last section video/asta.jpg"
+              alt="Asta raising his sword in the final scene"
+            />
+          </div>
+        </section>
+
+        <footer class="site-footer-ending" aria-label="Site footer">
+          <div class="site-footer-ending__statement">
+            <a class="site-footer-ending__brand" href="#top" aria-label="Neonverse home">
+              <span class="brand__mark site-footer-ending__mark" aria-hidden="true">
+                <span></span>
+              </span>
+              <span>NEON<span>VERSE</span></span>
+            </a>
+            <p lang="ja">限界を超えて、次の物語へ。</p>
+            <p>Anime-inspired digital direction, character worlds, and cinematic web experiences.</p>
+            <a class="site-footer-ending__cta" href="mailto:hello@neonverse.dev">共作を始める / Collaborate</a>
+          </div>
+
+          <div class="site-footer-ending__columns">
+            <nav class="site-footer-ending__group" aria-label="Footer navigation">
+              <h3 lang="ja">章</h3>
+              <a href="#top">Home</a>
+              <a href="#">Characters</a>
+              <a href="#">Neon Shop</a>
+              <a href="#">Community</a>
+            </nav>
+
+            <nav class="site-footer-ending__group" aria-label="Project links">
+              <h3 lang="ja">制作</h3>
+              <a href="#">Motion Direction</a>
+              <a href="#">3D Web Scenes</a>
+              <a href="#">Portfolio</a>
+              <a href="#">Case Studies</a>
+            </nav>
+
+            <div class="site-footer-ending__group">
+              <h3 lang="ja">接続</h3>
+              <a href="mailto:hello@neonverse.dev">hello@neonverse.dev</a>
+              <a href="#">Twitter / X</a>
+              <a href="#">Discord</a>
+              <a href="#">Youtube</a>
+            </div>
+          </div>
+
+          <div class="site-footer-ending__bottom">
+            <p lang="ja">反魔法の鼓動は、まだ終わらない。</p>
+            <nav aria-label="Legal links">
+              <a href="#">Privacy</a>
+              <a href="#">Terms</a>
+              <a href="#top">Back To Top</a>
+            </nav>
+            <small>© 2026 NEONVERSE. All rights reserved.</small>
+          </div>
+        </footer>
       </div>
-      <label class="devil-tuner__row">
-        <span>Scale <output data-devil-output="scale">2.35</output></span>
-        <input data-devil-control="scale" type="range" min="0.8" max="4" step="0.01" />
-      </label>
-      <label class="devil-tuner__row">
-        <span>X Position <output data-devil-output="x">2.4%</output></span>
-        <input data-devil-control="x" type="range" min="-45" max="45" step="0.1" />
-      </label>
-      <label class="devil-tuner__row">
-        <span>Y Position <output data-devil-output="y">0%</output></span>
-        <input data-devil-control="y" type="range" min="-45" max="45" step="0.1" />
-      </label>
-      <div class="devil-tuner__actions">
-        <button class="devil-tuner__save" type="button">Save</button>
-        <button class="devil-tuner__apply" type="button">Use Saved</button>
-        <button class="devil-tuner__reset" type="button">Reset</button>
+    </section>
       </div>
-    </aside>
+    </div>
     <script src="vendor/gsap.min.js"></script>
     <script src="vendor/ScrollTrigger.min.js"></script>
-    <script src="vendor/three.min.js"></script>
-    <script src="script.js?v=restore-20260607"></script>
+    <script type="module" src="script.js?v=pages-20260627"></script>
   </body>
 </html>
