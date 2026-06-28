@@ -379,9 +379,9 @@ a {
   width: min(93.7vw, 1558px);
   transform: translateX(-50%);
   pointer-events: auto;
-  --devil-x: 1.2%;
-  --devil-y: 1%;
-  --devil-scale: 7.6;
+  --devil-x: 0%;
+  --devil-y: 0%;
+  --devil-scale: 1;
 }
 
 .character {
@@ -1752,9 +1752,9 @@ a {
   .character-stack {
     width: 138vw;
     max-width: 1260px;
-    --devil-x: 1.2%;
-    --devil-y: 1%;
-    --devil-scale: 7.6;
+    --devil-x: 0%;
+    --devil-y: 0%;
+    --devil-scale: 1;
   }
 
   .hero__stage::after {
@@ -1989,9 +1989,9 @@ a {
     width: 205vw;
     max-width: 1120px;
     bottom: 95px;
-    --devil-x: 1.2%;
-    --devil-y: 1%;
-    --devil-scale: 7.6;
+    --devil-x: 0%;
+    --devil-y: 0%;
+    --devil-scale: 1;
   }
 
   .hero__stage::after {
