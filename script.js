@@ -125,7 +125,6 @@ window.addEventListener("DOMContentLoaded", () => {
   initHeroAmbientText();
   initInfoCardTilt();
   initCharacterMaskReveal();
-  initDevilImageTuner();
   initStackedCinematicScroll();
   loadSwordSceneModule();
 });
@@ -344,9 +343,6 @@ function initCharacterMaskReveal() {
     pointerDuration: { value: 1.0 },
     prevFrame: { value: null },
     revealMap: { value: null },
-    devilHue: { value: 0 },
-    devilSaturation: { value: 1 },
-    devilBrightness: { value: 1 },
   };
 
   let width = 1;
@@ -432,28 +428,15 @@ function initCharacterMaskReveal() {
     fragmentShader: `
       uniform sampler2D prevFrame;
       uniform sampler2D revealMap;
-      uniform float devilHue;
-      uniform float devilSaturation;
-      uniform float devilBrightness;
       varying vec2 vUv;
       varying vec4 vPosProj;
-
-      vec3 rotateHue(vec3 color, float angle) {
-        vec3 axis = normalize(vec3(1.0, 1.0, 1.0));
-        float s = sin(angle);
-        float c = cos(angle);
-        return color * c + cross(axis, color) * s + axis * dot(axis, color) * (1.0 - c);
-      }
 
       void main() {
         vec2 blobUv = ((vPosProj.xy / vPosProj.w) + 1.0) * 0.5;
         float blob = texture2D(prevFrame, blobUv).r;
         float alpha = smoothstep(0.03, 0.42, blob);
         vec4 texColor = texture2D(revealMap, vUv);
-        vec3 color = rotateHue(texColor.rgb, devilHue);
-        float luma = dot(color, vec3(0.299, 0.587, 0.114));
-        color = mix(vec3(luma), color, devilSaturation) * devilBrightness;
-        gl_FragColor = vec4(clamp(color, 0.0, 1.0), texColor.a * alpha);
+        gl_FragColor = vec4(texColor.rgb, texColor.a * alpha);
       }
     `,
   });
@@ -470,16 +453,6 @@ function initCharacterMaskReveal() {
     if (rtPrevious) rtPrevious.dispose();
   };
 
-  const syncDevilAdjustments = () => {
-    const styles = getComputedStyle(stack);
-    const hue = parseFloat(styles.getPropertyValue("--devil-hue")) || 0;
-    const saturation = parseFloat(styles.getPropertyValue("--devil-saturation")) || 1;
-    const brightness = parseFloat(styles.getPropertyValue("--devil-brightness")) || 1;
-    uniforms.devilHue.value = hue * Math.PI / 180;
-    uniforms.devilSaturation.value = saturation;
-    uniforms.devilBrightness.value = brightness;
-  };
-
   const resize = () => {
     const rect = stack.getBoundingClientRect();
     width = Math.max(1, Math.round(rect.width));
@@ -488,7 +461,6 @@ function initCharacterMaskReveal() {
     renderer.setPixelRatio(getPixelRatio());
     renderer.setSize(width, height, false);
     uniforms.aspect.value = width / height;
-    syncDevilAdjustments();
 
     camera.left = width / -2;
     camera.right = width / 2;
@@ -602,7 +574,6 @@ function initCharacterMaskReveal() {
   stack.addEventListener("pointermove", movePointer);
   stack.addEventListener("pointerleave", hidePointer);
   window.addEventListener("resize", resize);
-  window.addEventListener("devilControls:update", resize);
 
   const observer = new IntersectionObserver(([entry]) => {
     isVisible = entry.isIntersecting;
@@ -621,109 +592,6 @@ function initCharacterMaskReveal() {
       startAnimation();
     }
   });
-}
-
-function initDevilImageTuner() {
-  const params = new URLSearchParams(window.location.search);
-  const isLocalPreview = ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname);
-  if (!isLocalPreview && !params.has("tuner")) return;
-
-  const stack = document.querySelector(".character-stack");
-  if (!stack) return;
-
-  const storageKey = "creativeAnimeLanding.devilTuner";
-  const defaults = {
-    x: 0,
-    y: 0,
-    scale: 1,
-    hue: 0,
-    saturation: 1,
-    brightness: 1,
-  };
-
-  const saved = (() => {
-    try {
-      return JSON.parse(localStorage.getItem(storageKey) || "{}");
-    } catch {
-      return {};
-    }
-  })();
-
-  const values = { ...defaults, ...saved };
-  const controls = [
-    ["x", "X", -45, 45, 0.1],
-    ["y", "Y", -45, 45, 0.1],
-    ["scale", "Zoom", 0.8, 4, 0.01],
-    ["hue", "Hue", -180, 180, 1],
-    ["saturation", "Sat", 0, 2.4, 0.01],
-    ["brightness", "Bright", 0.35, 1.8, 0.01],
-  ];
-
-  const panel = document.createElement("aside");
-  panel.className = "devil-tuner";
-  panel.setAttribute("aria-label", "Devil image tuning controls");
-  panel.innerHTML = `
-    <div class="devil-tuner__header">
-      <span>Devil Image Controls</span>
-      <button type="button" data-devil-toggle aria-label="Minimize controls">-</button>
-    </div>
-    <div class="devil-tuner__body">
-      ${controls.map(([key, label, min, max, step]) => `
-        <label>
-          <span>${label}</span>
-          <input type="range" data-devil-control="${key}" min="${min}" max="${max}" step="${step}" value="${values[key]}">
-          <output data-devil-output="${key}">${Number(values[key]).toFixed(step < 1 ? 2 : 0)}</output>
-        </label>
-      `).join("")}
-    </div>
-    <div class="devil-tuner__actions">
-      <button type="button" data-devil-reset>Reset</button>
-    </div>
-  `;
-
-  const body = panel.querySelector(".devil-tuner__body");
-  const apply = () => {
-    stack.style.setProperty("--devil-x", `${values.x}%`);
-    stack.style.setProperty("--devil-y", `${values.y}%`);
-    stack.style.setProperty("--devil-scale", values.scale);
-    stack.style.setProperty("--devil-hue", values.hue);
-    stack.style.setProperty("--devil-saturation", values.saturation);
-    stack.style.setProperty("--devil-brightness", values.brightness);
-    localStorage.setItem(storageKey, JSON.stringify(values));
-    window.dispatchEvent(new CustomEvent("devilControls:update"));
-  };
-
-  panel.querySelectorAll("[data-devil-control]").forEach((input) => {
-    const key = input.dataset.devilControl;
-    const output = panel.querySelector(`[data-devil-output="${key}"]`);
-    const step = Number(input.step);
-    input.addEventListener("input", () => {
-      values[key] = Number(input.value);
-      output.textContent = values[key].toFixed(step < 1 ? 2 : 0);
-      apply();
-    });
-  });
-
-  panel.querySelector("[data-devil-reset]").addEventListener("click", () => {
-    Object.assign(values, defaults);
-    panel.querySelectorAll("[data-devil-control]").forEach((input) => {
-      const key = input.dataset.devilControl;
-      const step = Number(input.step);
-      input.value = values[key];
-      panel.querySelector(`[data-devil-output="${key}"]`).textContent = values[key].toFixed(step < 1 ? 2 : 0);
-    });
-    apply();
-  });
-
-  panel.querySelector("[data-devil-toggle]").addEventListener("click", (event) => {
-    const isHidden = body.hidden;
-    body.hidden = !isHidden;
-    panel.querySelector(".devil-tuner__actions").hidden = !isHidden;
-    event.currentTarget.textContent = isHidden ? "-" : "+";
-  });
-
-  document.body.appendChild(panel);
-  apply();
 }
 
 function initStackedCinematicScroll() {
@@ -771,8 +639,10 @@ function initStackedCinematicScroll() {
   const getTotalScroll = () => Math.round(window.innerHeight * timelineUnits);
   const pixelTriggerProgress = hasPixelHandoff ? Math.min(0.985, (storyCompleteUnit + 0.04) / timelineUnits) : Number.POSITIVE_INFINITY;
   const finalTriggerProgress = hasFinalHandoff ? Math.min(0.992, (storyTimelineUnits + pixelHandoffTimelineUnits + swordHoldTimelineUnits) / timelineUnits) : Number.POSITIVE_INFINITY;
+  const getFinalFooterGap = () => 0;
   const getFinalFooterTargetY = () => {
-    return -Math.round(window.innerHeight);
+    const footerHeight = finalFooter?.offsetHeight || window.innerHeight * 0.2;
+    return -Math.round(window.innerHeight + getFinalFooterGap() + footerHeight);
   };
   const finalRevealStartOffset = 0.24;
   const scheduleRefresh = debounce(() => {
