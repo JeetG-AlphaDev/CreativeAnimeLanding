@@ -1227,7 +1227,7 @@ a {
 }
 
 .final-ending {
-  --final-footer-gap: 6vw;
+  --final-footer-gap: 0px;
   z-index: 12;
   overflow: hidden;
   color: var(--paper);
@@ -1390,7 +1390,7 @@ a {
   height: 20svh;
   min-height: 20svh;
   max-height: 20svh;
-  margin-top: var(--final-footer-gap);
+  margin-top: 0;
   padding: clamp(12px, 1.6vw, 20px) clamp(20px, 4vw, 64px) clamp(10px, 1.4vw, 16px);
   overflow: hidden;
   color: var(--paper);

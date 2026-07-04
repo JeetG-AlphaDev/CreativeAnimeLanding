@@ -44,6 +44,8 @@ let floorRedLight;
 let cloverGlowOuter;
 let cloverGlowInner;
 let floorGlow;
+let wallRedWash;
+let wallShadowVeil;
 let motionStreak;
 
 let isDragging = false;
@@ -126,8 +128,8 @@ init();
 
 function init() {
   scene = new THREE.Scene();
-  scene.background = new THREE.Color('#030303');
-  scene.fog = new THREE.Fog('#030303', 6, 14);
+  scene.background = new THREE.Color('#010101');
+  scene.fog = new THREE.Fog('#020101', 4.4, 11.2);
 
   const { width, height } = getViewportSize();
 
@@ -145,7 +147,7 @@ function init() {
   renderer.setSize(width, height, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.08;
+  renderer.toneMappingExposure = 0.78;
   renderer.shadowMap.enabled = width >= 768 && !reducedMotion;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -153,9 +155,9 @@ function init() {
   composer.addPass(new RenderPass(scene, camera));
   bloomPass = new UnrealBloomPass(
     new THREE.Vector2(width, height),
-    width < 768 ? 0 : 0.38,
-    0.32,
-    0.18
+    width < 768 ? 0 : 0.66,
+    0.48,
+    0.12
   );
   bloomPass.enabled = width >= 768 && !reducedMotion;
   composer.addPass(bloomPass);
@@ -198,13 +200,13 @@ function init() {
 }
 
 function createWall() {
-  const wallMaterial = createWallPBRMaterial(5.8, 2.5, '#2a211e');
-  const centerMaterial = createWallPBRMaterial(2.1, 2.05, '#241d1b');
+  const wallMaterial = createWallPBRMaterial(5.8, 2.5, '#070404');
+  const centerMaterial = createWallPBRMaterial(2.1, 2.05, '#0a0505');
 
   const trimMaterial = new THREE.MeshStandardMaterial({
-    color: '#0b0b0d',
-    roughness: 0.76,
-    metalness: 0.1
+    color: '#050506',
+    roughness: 0.88,
+    metalness: 0.06
   });
 
   const seamMaterial = new THREE.MeshBasicMaterial({
@@ -242,6 +244,7 @@ function createWall() {
   createCornerWall(-7.25);
   createCornerWall(7.25);
   createSubtleCracks();
+  createDungeonAtmosphere();
 }
 
 function createSidePanel(x) {
@@ -290,7 +293,7 @@ function createSidePanel(x) {
 
 function createCornerWall(x) {
   const side = Math.sign(x);
-  const sideMaterial = createWallPBRMaterial(1.35, 2.55, '#1b1817');
+  const sideMaterial = createWallPBRMaterial(1.35, 2.55, '#050303');
   const sideWall = new THREE.Mesh(preparePbrGeometry(new THREE.BoxGeometry(2.4, 6.35, 0.22, 32, 48, 1)), sideMaterial);
   sideWall.position.set(x, 0.48, -1.72);
   sideWall.rotation.y = side * 0.28;
@@ -335,20 +338,49 @@ function createFloor() {
   }
 
   floorGlow = new THREE.Mesh(
-    new THREE.PlaneGeometry(5.8, 3.4),
+    new THREE.PlaneGeometry(7.4, 4.6),
     new THREE.MeshBasicMaterial({
       map: createSoftReflectionTexture(),
       color: '#ff2020',
       transparent: true,
-      opacity: 0.105,
+      opacity: 0.18,
       blending: THREE.AdditiveBlending,
       depthWrite: false
     })
   );
   floorGlow.rotation.x = -Math.PI / 2;
   floorGlow.rotation.z = -0.02;
-  floorGlow.position.set(0.12, -1.881, -0.62);
+  floorGlow.position.set(0.12, -1.879, -0.68);
   backgroundGroup.add(floorGlow);
+}
+
+function createDungeonAtmosphere() {
+  wallRedWash = new THREE.Mesh(
+    new THREE.PlaneGeometry(7.2, 5.35),
+    new THREE.MeshBasicMaterial({
+      map: createPaintCloudTexture('#ff1515', '#650303', '#030000'),
+      color: '#ff1b14',
+      transparent: true,
+      opacity: 0.28,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    })
+  );
+  wallRedWash.position.set(0, 0.58, -1.78);
+  backgroundGroup.add(wallRedWash);
+
+  wallShadowVeil = new THREE.Mesh(
+    new THREE.PlaneGeometry(15.25, 6.8),
+    new THREE.MeshBasicMaterial({
+      map: createDungeonVignetteTexture(),
+      color: '#050000',
+      transparent: true,
+      opacity: 0.64,
+      depthWrite: false
+    })
+  );
+  wallShadowVeil.position.set(0, 0.55, -1.735);
+  backgroundGroup.add(wallShadowVeil);
 }
 
 function createGroundPBRMaterial() {
@@ -364,13 +396,13 @@ function createGroundPBRMaterial() {
     roughnessMap,
     aoMap,
     displacementMap,
-    color: '#40342d',
-    roughness: 0.92,
+    color: '#17100f',
+    roughness: 0.96,
     metalness: 0.01,
-    normalScale: new THREE.Vector2(0.42, 0.42),
-    aoMapIntensity: 0.72,
-    displacementScale: 0.022,
-    displacementBias: -0.014
+    normalScale: new THREE.Vector2(0.55, 0.55),
+    aoMapIntensity: 0.92,
+    displacementScale: 0.018,
+    displacementBias: -0.012
   });
 }
 
@@ -388,12 +420,12 @@ function createWallPBRMaterial(repeatX, repeatY, tint = '#2b2421') {
     aoMap,
     displacementMap,
     color: tint,
-    roughness: 0.88,
-    metalness: 0.015,
-    normalScale: new THREE.Vector2(0.34, 0.34),
-    aoMapIntensity: 0.8,
-    displacementScale: 0.018,
-    displacementBias: -0.011
+    roughness: 0.94,
+    metalness: 0.01,
+    normalScale: new THREE.Vector2(0.48, 0.48),
+    aoMapIntensity: 0.96,
+    displacementScale: 0.013,
+    displacementBias: -0.009
   });
 }
 
@@ -483,6 +515,45 @@ function createSoftReflectionTexture() {
     context.arc(x, y, radius, 0, Math.PI * 2);
     context.fill();
   }
+
+  const texture = new THREE.CanvasTexture(textureCanvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  return texture;
+}
+
+function createDungeonVignetteTexture() {
+  const size = 512;
+  const textureCanvas = document.createElement('canvas');
+  textureCanvas.width = size;
+  textureCanvas.height = size;
+  const context = textureCanvas.getContext('2d');
+
+  const horizontal = context.createLinearGradient(0, 0, size, 0);
+  horizontal.addColorStop(0, 'rgba(0,0,0,0.95)');
+  horizontal.addColorStop(0.18, 'rgba(0,0,0,0.35)');
+  horizontal.addColorStop(0.5, 'rgba(0,0,0,0)');
+  horizontal.addColorStop(0.82, 'rgba(0,0,0,0.38)');
+  horizontal.addColorStop(1, 'rgba(0,0,0,0.96)');
+  context.fillStyle = horizontal;
+  context.fillRect(0, 0, size, size);
+
+  const vertical = context.createLinearGradient(0, 0, 0, size);
+  vertical.addColorStop(0, 'rgba(0,0,0,0.72)');
+  vertical.addColorStop(0.32, 'rgba(0,0,0,0.06)');
+  vertical.addColorStop(0.68, 'rgba(0,0,0,0.08)');
+  vertical.addColorStop(1, 'rgba(0,0,0,0.86)');
+  context.globalCompositeOperation = 'source-over';
+  context.fillStyle = vertical;
+  context.fillRect(0, 0, size, size);
+
+  const redPocket = context.createRadialGradient(size * 0.5, size * 0.48, 0, size * 0.5, size * 0.48, size * 0.42);
+  redPocket.addColorStop(0, 'rgba(255,0,0,0)');
+  redPocket.addColorStop(0.58, 'rgba(20,0,0,0.06)');
+  redPocket.addColorStop(1, 'rgba(0,0,0,0.44)');
+  context.fillStyle = redPocket;
+  context.fillRect(0, 0, size, size);
 
   const texture = new THREE.CanvasTexture(textureCanvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -722,11 +793,11 @@ function createCloverShape() {
 }
 
 function setupLights() {
-  const ambientLight = new THREE.AmbientLight('#ffffff', 0.2);
+  const ambientLight = new THREE.AmbientLight('#ffdddd', 0.075);
   scene.add(ambientLight);
 
-  const keyLight = new THREE.DirectionalLight('#ffffff', 3.0);
-  keyLight.position.set(-2.5, 2.6, 4.2);
+  const keyLight = new THREE.DirectionalLight('#ffe8dc', 1.45);
+  keyLight.position.set(-2.8, 2.75, 4.4);
   keyLight.castShadow = window.innerWidth >= 768 && !reducedMotion;
   keyLight.shadow.mapSize.set(1024, 1024);
   keyLight.shadow.camera.near = 0.5;
@@ -735,23 +806,33 @@ function setupLights() {
   keyLight.shadow.camera.right = 4;
   keyLight.shadow.camera.top = 4;
   keyLight.shadow.camera.bottom = -4;
+  keyLight.shadow.bias = -0.00018;
+  keyLight.shadow.normalBias = 0.025;
   scene.add(keyLight);
 
-  redPointLight = new THREE.PointLight('#ff1616', 2.15, 6.0, 1.8);
-  redPointLight.position.set(0, 1.25, -1.25);
+  redPointLight = new THREE.PointLight('#ff1616', 4.4, 7.2, 1.55);
+  redPointLight.position.set(0, 1.18, -1.05);
   scene.add(redPointLight);
 
-  const redRimLight = new THREE.DirectionalLight('#ff1212', 1.45);
-  redRimLight.position.set(1.8, 1.1, -2.2);
+  const cloverCoreLight = new THREE.PointLight('#ff3a25', 2.6, 3.6, 1.2);
+  cloverCoreLight.position.set(0, 1.18, -1.34);
+  scene.add(cloverCoreLight);
+
+  const redRimLight = new THREE.DirectionalLight('#ff1212', 2.05);
+  redRimLight.position.set(2.1, 1.28, -2.2);
   scene.add(redRimLight);
 
-  const bladeEdgeLight = new THREE.DirectionalLight('#ffffff', 1.95);
-  bladeEdgeLight.position.set(-1.4, 0.55, 2.4);
+  const bladeEdgeLight = new THREE.DirectionalLight('#fff1e8', 1.55);
+  bladeEdgeLight.position.set(-1.45, 0.52, 2.65);
   scene.add(bladeEdgeLight);
 
-  floorRedLight = new THREE.PointLight('#ff1717', 1.25, 3.8, 1.35);
-  floorRedLight.position.set(0.15, -1.32, 0.1);
+  floorRedLight = new THREE.PointLight('#ff1717', 2.35, 5.4, 1.28);
+  floorRedLight.position.set(0.12, -1.35, -0.36);
   scene.add(floorRedLight);
+
+  const lowWallBounce = new THREE.PointLight('#a80606', 1.15, 5.0, 1.75);
+  lowWallBounce.position.set(-1.25, -0.62, -1.18);
+  scene.add(lowWallBounce);
 }
 
 function setupCarouselControls() {
@@ -1307,7 +1388,9 @@ function handleResize() {
   composer.setSize(width, height);
   bloomPass.setSize(width, height);
   bloomPass.enabled = !isMobile && !reducedMotion;
-  bloomPass.strength = isMobile ? 0 : 0.38;
+  bloomPass.strength = isMobile ? 0 : 0.66;
+  bloomPass.radius = isMobile ? 0 : 0.48;
+  bloomPass.threshold = 0.12;
 
   modelItems.forEach(fitModelToViewport);
   renderSwordFrame();
@@ -1352,12 +1435,19 @@ function renderSwordFrame(time = clock.getElapsedTime()) {
   updateActiveModel(time);
 
   if (cloverGlowOuter && cloverGlowInner && redPointLight && floorRedLight) {
-    cloverGlowOuter.material.opacity = 0.045 + Math.sin(time * 2.2) * 0.012;
-    cloverGlowInner.material.opacity = 0.075 + Math.sin(time * 1.8) * 0.012;
-    redPointLight.intensity = 2.0 + Math.sin(time * 2) * 0.2;
-    floorRedLight.intensity = 1.15 + Math.sin(time * 1.7) * 0.1;
+    cloverGlowOuter.material.opacity = 0.095 + Math.sin(time * 2.2) * 0.018;
+    cloverGlowInner.material.opacity = 0.16 + Math.sin(time * 1.8) * 0.024;
+    redPointLight.intensity = 4.2 + Math.sin(time * 2) * 0.45;
+    floorRedLight.intensity = 2.35 + Math.sin(time * 1.7) * 0.25;
     if (floorGlow) {
-      floorGlow.material.opacity = 0.095 + Math.sin(time * 1.35) * 0.012;
+      floorGlow.material.opacity = 0.18 + Math.sin(time * 1.35) * 0.026;
+    }
+    if (wallRedWash) {
+      wallRedWash.material.opacity = 0.24 + Math.sin(time * 1.55) * 0.035;
+      wallRedWash.scale.setScalar(1.0 + Math.sin(time * 0.9) * 0.018);
+    }
+    if (wallShadowVeil) {
+      wallShadowVeil.material.opacity = 0.62 + Math.sin(time * 0.72) * 0.035;
     }
   }
 
