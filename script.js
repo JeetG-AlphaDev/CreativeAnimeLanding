@@ -135,7 +135,7 @@ function loadSwordSceneModule() {
   const load = () => {
     const script = document.createElement("script");
     script.type = "module";
-    script.src = "site-3d/script.js?v=dungeon-red-20260628";
+    script.src = "site-3d/script.js?v=wall-pbr-20260617";
     script.dataset.swordSceneModule = "true";
     document.body.appendChild(script);
   };
@@ -574,6 +574,7 @@ function initCharacterMaskReveal() {
   stack.addEventListener("pointermove", movePointer);
   stack.addEventListener("pointerleave", hidePointer);
   window.addEventListener("resize", resize);
+  window.addEventListener("devilControls:update", resize);
 
   const observer = new IntersectionObserver(([entry]) => {
     isVisible = entry.isIntersecting;
@@ -639,7 +640,7 @@ function initStackedCinematicScroll() {
   const getTotalScroll = () => Math.round(window.innerHeight * timelineUnits);
   const pixelTriggerProgress = hasPixelHandoff ? Math.min(0.985, (storyCompleteUnit + 0.04) / timelineUnits) : Number.POSITIVE_INFINITY;
   const finalTriggerProgress = hasFinalHandoff ? Math.min(0.992, (storyTimelineUnits + pixelHandoffTimelineUnits + swordHoldTimelineUnits) / timelineUnits) : Number.POSITIVE_INFINITY;
-  const getFinalFooterGap = () => 0;
+  const getFinalFooterGap = () => window.innerWidth * 0.06;
   const getFinalFooterTargetY = () => {
     const footerHeight = finalFooter?.offsetHeight || window.innerHeight * 0.2;
     return -Math.round(window.innerHeight + getFinalFooterGap() + footerHeight);
